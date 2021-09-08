@@ -13,7 +13,7 @@
 #define EXT_ID_CHS 0x05
 #define EXT_ID_LBA 0x0F
 
-int main()
+int main(int argc, char** argv)
 {
     FILE *fptr;
     unsigned char buffer[512];
@@ -29,8 +29,14 @@ int main()
     unsigned int *nextEBR;
     int j;
 
+    if(argc != 2)
+    {
+        printf("Please enter the name of device only\n");
+        exit(EXIT_FAILURE);
+    }
+
     //opening the disk file
-    if((fptr = fopen("/dev/sdc", "r")) == NULL)
+    if((fptr = fopen(argv[1], "r")) == NULL)
     {
         perror("");
         exit(EXIT_FAILURE);
