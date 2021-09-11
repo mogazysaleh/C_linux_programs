@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define _LARGEFILE64_SOURCE
 #define SECTOR_SIZE 512
 #define PARTITIONS_COUNT 4
 #define PARTITIONS_OFFSET 0x01BE
@@ -36,7 +37,7 @@ int main(int argc, char** argv)
     }
 
     //opening the disk file
-    if((fptr = fopen(argv[1], "r")) == NULL)
+    if((fptr = fopen64(argv[1], "r")) == NULL)
     {
         perror("");
         exit(EXIT_FAILURE);
