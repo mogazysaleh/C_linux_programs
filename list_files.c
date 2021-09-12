@@ -20,9 +20,16 @@ typedef struct group group;
 typedef struct tm datetime;
 typedef unsigned long ul;
 
-bool a_flag = false;
-bool i_flag = false;
-bool l_flag = false;
+bool a_flag = false; //print entries that start with .
+bool i_flag = false; //print inode
+bool l_flag = false; //print long list format
+bool r_flag = false; //reverse the sorting
+bool u_flag = false; //display last access time
+bool t_flag = false; //sort by time
+bool c_flag = false; //display last status change time
+
+char *months[12] = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"};
+
 int length_nlink = 0;
 int length_size = 0;
 int length_inode = 0;
@@ -56,14 +63,47 @@ void printPermissions(mode_t mode)
     if(mode &  S_IXOTH ) printf("x"); else printf("-");
 }
 
-//comparator function to be used in qsort() function
-int comparator(const void *p1, const void *p2)
+//comparator function to sort alphabetically according to name
+int comparator_name(const void *p1, const void *p2)
 {
     fileStat *lp1=*(fileStat **)p1;
     fileStat *lp2=*(fileStat **)p2;
-
-    return strcmp((lp1)->name, lp2->name);
+    if(r_flag)
+        return -1 * strcmp((lp1)->name, lp2->name);
+    else
+        return strcmp((lp1)->name, lp2->name);
 }
+
+//comparator function to sort by time
+int comparator_time(const void *p1, const void *p2)
+{
+    fileStat *lp1=*(fileStat **)p1;
+    fileStat *lp2=*(fileStat **)p2;
+    time_t t1;
+    time_t t2;
+    if(u_flag) //sort by access time if u option is entered
+    {
+        t1 = lp1->st.st_atim.tv_sec;
+        t2 = lp2->st.st_atim.tv_sec;
+    }
+    else if(c_flag) //sort by status change time if u option is entered
+    {
+        t1 = lp1->st.st_ctim.tv_sec;
+        t2 = lp2->st.st_ctim.tv_sec;
+    }
+    else //sort by time of last modification
+    {
+        t1 = lp1->st.st_mtim.tv_sec;
+        t2 = lp2->st.st_mtim.tv_sec;
+    }
+
+    //reverse if r option is entered
+    if(r_flag)
+        return t1 - t2;
+    else
+        return t2 - t1;
+}
+
 
 void printEntry(fileStat* filePtr)
 {
@@ -105,8 +145,11 @@ void printEntry(fileStat* filePtr)
         printf("%*ld ", length_size, filePtr->st.st_size);
 
         //printing last modification date and time
-        dt = localtime(&(filePtr->st.st_mtime));
-        printf("%02d-%02d-%d %02d:%02d  ", dt->tm_mday, dt->tm_mon + 1, dt->tm_year + 1900, dt->tm_hour, dt->tm_min);
+        if(u_flag)
+            dt = localtime(&(filePtr->st.st_atime));
+        else
+            dt = localtime(&(filePtr->st.st_mtime));
+        printf("%3s %2d %d %02d:%02d  ", months[dt->tm_mon], dt->tm_mday, dt->tm_year + 1900, dt->tm_hour, dt->tm_min);
 
         //printing name of file
         printf("%s  \n",filePtr->name);
@@ -131,15 +174,10 @@ int main(int argc, char **argv)
     int dirEntriesCnt = 0;
     int opt;
     int index = 0;
-
-    if(argc == 1)
-    {
-        printf("Please enter the directory\n");
-        exit(EXIT_FAILURE);
-    }
+    int (*comparator)(const void *, const void *);
 
     //setting flags for options
-    while((opt = getopt(argc, argv, "ail")) != -1)
+    while((opt = getopt(argc, argv, "ailrutc")) != -1)
     {
         switch (opt)
         {
@@ -152,23 +190,42 @@ int main(int argc, char **argv)
         case 'l':
             l_flag = true;
             break;
+        case 'r':
+            r_flag = true;
+            break;
+        case 'u':
+            u_flag = true;
+            c_flag = false;
+            break;
+        case 't':
+            t_flag = true;
+            break;
+        case 'c':
+            c_flag = true;
+            u_flag = false;
+        default:
+            exit(EXIT_FAILURE);
+            break;
         }
     }
 
     if(optind >= argc)
     {
-        printf("Expected argument after options\nUsage: %s [-a] [-i] [-l] direcotry_name\n", argv[0]);
-        exit(EXIT_FAILURE);
+        strcpy(dirPath, ".");
+    }
+    else
+    {
+        strcpy(dirPath, argv[optind]);
     }
     
     //reading the directory and checking for its validity
-    if((dir = opendir(argv[optind])) == NULL)
+    if((dir = opendir(dirPath)) == NULL)
     {
         perror("");
         exit(EXIT_FAILURE);
     }
 
-    strcpy(dirPath, argv[optind]);
+
 
     //getting the count of entries in the directory
     while(readdir(dir))
@@ -214,7 +271,12 @@ int main(int argc, char **argv)
 
     }
 
-    //sorting the entries based on name
+    //sorting the entries based on name or time
+    if(t_flag)
+        comparator = comparator_time;
+    else
+        comparator = comparator_name;
+
     qsort(dirEntries, dirEntriesCnt, sizeof(fileStat*), comparator);
 
     //printing the entries
