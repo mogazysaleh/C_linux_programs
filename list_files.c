@@ -147,6 +147,8 @@ void printEntry(fileStat* filePtr)
         //printing last modification date and time
         if(u_flag)
             dt = localtime(&(filePtr->st.st_atime));
+        else if(c_flag)
+            dt = localtime(&(filePtr->st.st_ctime));
         else
             dt = localtime(&(filePtr->st.st_mtime));
         printf("%3s %2d %d %02d:%02d  ", months[dt->tm_mon], dt->tm_mday, dt->tm_year + 1900, dt->tm_hour, dt->tm_min);
@@ -203,6 +205,7 @@ int main(int argc, char **argv)
         case 'c':
             c_flag = true;
             u_flag = false;
+            break;
         default:
             exit(EXIT_FAILURE);
             break;
